@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/SignSense/static/css/main.929337f1.css",
+    "main.js": "/SignSense/static/js/main.20914928.js",
+    "static/media/SignSenseLogo.png": "/SignSense/static/media/SignSenseLogo.b9df6665967320f541c1.png",
+    "static/media/WorkSans.ttf": "/SignSense/static/media/WorkSans.905f58df4c3ad21ca78d.ttf",
+    "static/media/shutter_icon.png": "/SignSense/static/media/shutter_icon.f189cc6170ca4f5069fd.png",
+    "index.html": "/SignSense/index.html",
+    "main.929337f1.css.map": "/SignSense/static/css/main.929337f1.css.map",
+    "main.20914928.js.map": "/SignSense/static/js/main.20914928.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.929337f1.css",
+    "static/js/main.20914928.js"
+  ]
+}
