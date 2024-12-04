@@ -1,0 +1,325 @@
+@font-face {
+    font-family: 'Work Sans';
+    src: url('../assets/WorkSans.ttf');
+}
+
+html {
+    font-family: 'Work Sans';
+}
+
+.error {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.error-logo {
+    width: 30%;
+    margin-bottom: 2em;
+}
+
+.error-text {
+    font-size: 1.3em;
+    font-weight: 400;
+}
+
+.main {
+    display: flex;
+    flex-direction: row;
+    width: calc(100vw - 8em);
+    height: calc(100vh - 8em);
+    justify-content: center;
+    padding:4em;
+}
+
+.left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 30%;
+    height: 100%;
+}
+
+.right {
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 60%;
+    height: 100%;
+}
+
+.logo {
+    width: 80%;
+    margin-bottom: 2em;
+}
+
+
+
+.speed-slider {
+    width: 80%;
+}
+.speed-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: gray;
+  width: 80%;
+  margin-bottom: 1.5em;
+}
+.speed-slider-text {
+    width: 80%;
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+.text-section {
+    display: flex;
+    flex-direction: column;
+}
+
+
+
+.model-selector {
+    width: 80%;
+    height: 40px;
+    text-align: center;
+    background-color: transparent;
+    border-radius: 7px;
+    font-family: 'Work Sans';
+    font-size: 1em;
+    border: 2px solid gray;
+    margin-bottom: 0.5em;
+}
+.model-selector-text {
+    width: 80%;
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+
+
+
+
+.language-selector {
+    width: 80%;
+    height: 40px;
+    text-align: center;
+    background-color: transparent;
+    border-radius: 7px;
+    font-family: 'Work Sans';
+    font-size: 1em;
+    border: 2px solid gray;
+    margin-bottom: 0.5em;
+}
+.language-selector-text {
+    width: 80%;
+    font-size: 1.2em;
+    margin-bottom: 5px;
+}
+
+.camera {
+    display: flex;
+    align-items: end;
+    flex-direction: column-reverse;
+    width: 35%;
+}
+
+.camera-ref {
+    border-radius: 40px;
+    box-shadow: 0px 0px 10px 5px lightgray;
+    width: 100%;
+}
+
+
+.autocomplete-checkbox {
+    width: 80%;
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    font-size: 1.2em;
+    margin-bottom: 0.5em;
+}
+
+.checkbox {
+    margin: 0;
+    height: 20px;
+    width: 20px;
+}
+
+.right-top {
+    gap: 1.5em;
+    justify-content: space-between;
+    display: flex;
+    flex-direction: row;
+    width: 83%;
+}
+
+
+.bounding-box {
+    position: absolute;
+    border: 5px #F1185C dashed;
+    border-radius: 20px;
+    visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-output-section {
+    margin-top: 2em;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center ;
+    flex-wrap: wrap;
+}
+
+.text {
+    display: inline-flex;
+    white-space: pre-wrap;
+    justify-content: center;
+    width:100%;
+    flex-wrap: nowrap;
+}
+
+.text-output {
+    
+    color: rgb(75, 75, 75);
+    margin: 0;
+    font-size: 1.9em;
+}
+
+.text-suggestions {
+    color: rgb(147, 147, 147);
+    margin: 0;
+    font-size: 1.9em;
+}
+
+.text-translation {
+    word-wrap: break-word;
+    width: 100%;
+    margin: 0;
+    font-size: 1.9em;
+    font-weight: 500;
+    text-align: center;
+}
+
+.text-output-divider {
+    height: 1px;
+    width: 70%;
+    margin: 15px 0;
+    background-color: rgb(187, 187, 187);
+}
+
+.buttons {
+    margin-top: -65px;
+    margin-right: 25px;
+    display: flex;
+    flex-direction: row;
+    gap: 1em;
+    margin-bottom: 30px;
+}
+
+.clear-all-button, .share-button {
+    z-index: 3;
+    background-color: rgb(255, 191, 108);
+    box-shadow: 2px 2px 10px black;
+    font-weight: 700;
+    text-align: center;
+    width: 70px;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: 0.1s ease-in all;
+}
+
+.clear-all-button:hover, .share-button:hover {
+    transform: scale(1.03);
+}
+
+.tooltip {
+  visibility: hidden;
+  position: absolute;
+  background-color: rgb(238, 238, 238); /* Tooltip background */
+  padding: 17px 20px;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  white-space: pre-wrap;
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%) rotate(180deg);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 30px 30px 0 30px;
+  border-color: rgb(238, 238, 238) transparent transparent transparent; /* Matches tooltip background */
+}
+
+
+.tooltip-title {
+    margin: 0;
+    margin-bottom: 15px;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.tooltip-text {
+    margin: 0;
+    margin-bottom: 5px;
+}
+
+.voice-to-text-section {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    width: 70%;
+}
+
+.voice-to-text {
+    margin-top: 1.2em;
+    word-wrap: break-word;
+    width: 100%;
+    font-size: 1.3em;
+    font-weight: 500;
+    text-align: center;
+}
+
+.voice-to-text-button {
+    font-size: 1.2em;
+    border: 0;
+    background-color: rgb(255, 191, 108);
+    box-shadow: 2px 2px 10px rgb(84, 84, 84);
+    font-weight: 700;
+    text-align: center;
+    width: 35%;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: 0.1s ease-in all;
+}
+
+@media only screen and (max-width: 1200px) {
+    .main {
+        flex-direction: column;
+        height: fit-content;
+    }
+    .left {
+        width: 100%;
+    }
+    .right {
+        width: 100%;
+    }
+}
+
+@media only screen and (max-width: 800px) {
+}

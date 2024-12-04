@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import "./HomePage.css";
 import logo from "../assets/SignSenseLogo.png";
-import shutter from '../assets/shutter_icon.png'
+import shutter from "../assets/shutter_icon.png";
+import alphabets from "../assets/alphabets.png";
+import start_speaking from "../assets/start_speaking.png";
+import start_signing from "../assets/start_signing.png";
+import stop_speaking from "../assets/stop_speaking.png";
+import stop_signing from "../assets/stop_signing.png";
+import ReactSwitch from "react-switch";
 
 function HomePage() {
-  const [error, setError] = useState(true);
+  const [error, setError] = useState(false);
 
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState();
@@ -15,19 +21,47 @@ function HomePage() {
   const [selectedCamera, setSelectedCamera] = useState();
   const [speed, setSpeed] = useState();
 
+  const [transcription, setTranscription] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [transcriptionTrans, setTranscriptionTrans] = useState("");
+  const [autocomplete, setAutocomplete] = useState(false)
+  const [alphabetSymbols, setAlphabetSymbols] = useState(true);
+  const [fontSize, setFontSize] = useState(true);
+
   const videoRef = useRef(null);
   const outputRef = useRef(null);
   const suggestion = useRef(null);
   const outputTransRef = useRef(null);
+  const speechRef = useRef(null);
+  const speechTransRef = useRef(null);
   const bbRef = useRef(null);
   const shutterRef = useRef(null);
-  const autocomplete = useRef(null);
-  const tooltip = useRef(null);
+  const recognitionRef = useRef(null);
+  const scanButton = useRef(null);
+  const autocompleteSwitch = useRef(null);
+
+  const startRecognition = () => {
+    if (recognitionRef.current && !isRecording) {
+      recognitionRef.current.start();
+      setIsRecording(true);
+    }
+  };
+
+  const stopRecognition = () => {
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+    }
+  };
 
   var timerCount = 0;
+  var prevScanBtnStatus = "false";
+  var scanFailedCount = 0;
 
-  useEffect(() => {
-    navigator.permissions.query({ name: "camera" });
+  useEffect(() => { 
+    localStorage.setItem("chat_history", JSON.stringify([]));
+    navigator.permissions.query({ name: "camera", userVisibleOnly: true });
     navigator.mediaDevices.enumerateDevices().then((res) => {
       let camerasList = [];
       let cameraNamesList = [];
@@ -70,7 +104,7 @@ function HomePage() {
               setSelectedLanguage(localStorage.getItem("preferred_language"));
             } else {
               setSelectedLanguage("English");
-              localStorage.setItem("preferred_language", 'English');
+              localStorage.setItem("preferred_language", "English");
             }
           });
         });
@@ -82,10 +116,85 @@ function HomePage() {
       .catch((e) => {
         setError(true);
       });
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Your browser does not support the Web Speech API.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join("");
+      setTranscription(transcript);
+      fetch("http://127.0.0.1:5000/translate", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: transcript,
+          to: localStorage.getItem("preferred_language"),
+        }),
+      }).then((res) => {
+        res.json().then((r) => {
+          setTranscriptionTrans(r.text);
+        });
+      });
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech Recognition Error:", event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      if (speechRef.current.textContent != "Start speaking...") {
+        var new_list = JSON.parse(localStorage.getItem("chat_history"));
+        let new_item = {
+          type: "Speech",
+          text: speechRef.current.textContent,
+          translation: speechTransRef.current.textContent,
+        };
+        new_list.push(new_item);
+        localStorage.setItem("chat_history", JSON.stringify(new_list));
+      }
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   const sendFrame = async () => {
-    if (timerCount % (localStorage.getItem("preferred_speed") / 0.5) == 0) {
+    if (scanFailedCount >= 10) {
+      scanFailedCount = 0;
+      setIsScanning(false);
+      var new_list = JSON.parse(localStorage.getItem("chat_history"));
+      new_list.push({
+        type: "Sign",
+        text: outputRef.current.textContent,
+        translation: outputTransRef.current.textContent,
+      });
+      localStorage.setItem("chat_history", JSON.stringify(new_list));
+    }
+    if (
+      timerCount % (localStorage.getItem("preferred_speed") / 0.5) == 0 &&
+      scanButton.current.alt === "true"
+    ) {
       const video = videoRef.current;
 
       const canvas = document.createElement("canvas");
@@ -118,30 +227,28 @@ function HomePage() {
           }
         })
         .catch((err) => {});
+    } else if (scanButton.current.alt === "false") {
+      prevScanBtnStatus = "false";
     }
     timerCount++;
   };
 
-
   const createBB = async (data) => {
     let bb = bbRef.current;
-    let videoX = videoRef.current.getBoundingClientRect().left.toString() + "px";
-    let videoY =
-      videoRef.current.getBoundingClientRect().top.toString() + "px";
+    let videoX =
+      videoRef.current.getBoundingClientRect().left.toString() + "px";
+    let videoY = videoRef.current.getBoundingClientRect().top.toString() + "px";
     if (data.status == 202) {
-      let [newX1,
-        newY1,
-        newX2,
-        newY2] = scaleBoundingBox(
-          data.bounding_box.x1,
-          data.bounding_box.y1,
-          data.bounding_box.x2,
-          data.bounding_box.y2,
-          data.img_shape.w,
-          data.img_shape.h,
-          Math.round(videoRef.current.getBoundingClientRect().width),
-          Math.round(videoRef.current.getBoundingClientRect().height)
-        );
+      let [newX1, newY1, newX2, newY2] = scaleBoundingBox(
+        data.bounding_box.x1,
+        data.bounding_box.y1,
+        data.bounding_box.x2,
+        data.bounding_box.y2,
+        data.img_shape.w,
+        data.img_shape.h,
+        Math.round(videoRef.current.getBoundingClientRect().width),
+        Math.round(videoRef.current.getBoundingClientRect().height)
+      );
       bb.style.visibility = "visible";
       bb.style.left = "calc(" + videoX + " + " + (newX1 - 20) + "px)";
       bb.style.top = "calc(" + videoY + " + " + (newY1 - 20) + "px)";
@@ -150,15 +257,13 @@ function HomePage() {
       shutterRef.current.style.width =
         Math.min((newX2 - newX1 + 40) / 1.5, (newY2 - newY1 + 40) / 1.5) + "px";
       shutterRef.current.style.height = shutterRef.current.style.width;
-      setTimeout(()=>{
+      setTimeout(() => {
         bb.style.visibility = "hidden";
-      }, 300)
+      }, 300);
     } else {
       bb.style.visibility = "hidden";
     }
-    
-  }
-
+  };
 
   function scaleBoundingBox(
     x1,
@@ -185,29 +290,35 @@ function HomePage() {
 
   const processOutput = async (data) => {
     if (data.status == 202) {
+      if (prevScanBtnStatus === "false") {
+        outputRef.current.textContent = "Start signing...";
+        prevScanBtnStatus = "true";
+      }
       if (data.prediction === "BACKSPACE") {
-        outputRef.current.textContent = outputRef.current.textContent.slice(
-          0,
-          -1
-        );
-
-
-        if (suggestion.current.textContent != '') {
-          suggestion.current.textContent = '';
-          tooltip.current.style.visibility = "hidden";
+        if (outputRef.current.textContent !== "Start signing...") {
+          outputRef.current.textContent = outputRef.current.textContent.slice(
+            0,
+            -1
+          );
         }
 
+        if (outputRef.current.textContent.length === 0) {
+          outputRef.current.textContent = "Start signing...";
+        }
 
+        if (suggestion.current.textContent != "") {
+          suggestion.current.textContent = "";
+        }
       } else if (data.prediction === "SPACE") {
-
         if (suggestion.current.textContent == "") {
-          if (outputRef.current.textContent == '') {
+          if (outputRef.current.textContent == "") {
             outputRef.current.textContent = outputRef.current.textContent;
           } else if (outputRef.current.textContent.at(-1) == " ") {
             outputRef.current.textContent = outputRef.current.textContent;
           } else {
-            outputRef.current.textContent = outputRef.current.textContent + ' ';
-            if (autocomplete.current.checked == true) {
+            outputRef.current.textContent = outputRef.current.textContent + " ";
+            if (autocompleteSwitch.current.props.checked == true) {
+              
               if (
                 outputRef.current.textContent.split(" ").filter((x) => {
                   return x != "";
@@ -222,15 +333,16 @@ function HomePage() {
                     text: outputRef.current.textContent,
                   }),
                 }).then(async (res) => {
+                  
                   res.json().then((r) => {
-                    let suggestions = r.suggestions;
+                    
+                    let suggestions = r.suggestions.filter((x)=>{
+                      if (x != '') {
+                        return x;
+                      }
+                    });
                     suggestion.current.textContent = suggestions[0];
                     if (localStorage.getItem("suggestion_done") != "done") {
-                      tooltip.current.style.top =
-                        suggestion.current.getBoundingClientRect().top +
-                        50 +
-                        "px";
-                      tooltip.current.style.visibility = "visible";
                       localStorage.setItem("suggestion_done", "done");
                     }
                   });
@@ -239,28 +351,35 @@ function HomePage() {
             }
           }
         } else {
-          tooltip.current.style.visibility = "hidden";
           outputRef.current.textContent =
             outputRef.current.textContent + suggestion.current.textContent;
           suggestion.current.textContent = "";
         }
-
-
       } else {
-        outputRef.current.textContent =
-          outputRef.current.textContent + data.prediction;
-        suggestion.current.textContent = "";
+        if (outputRef.current.textContent !== "Start signing...") {
+          outputRef.current.textContent =
+            outputRef.current.textContent + data.prediction;
+          suggestion.current.textContent = "";
+        } else {
+          outputRef.current.textContent = data.prediction;
+        }
       }
+      scanFailedCount = 0;
       translate(false);
+    } else {
+      setTimeout(()=>{
+        scanFailedCount = scanFailedCount + 1;
+      }, 5)
     }
   };
 
   const translate = async (explicit) => {
     if (
-      localStorage.getItem("last_text") != outputRef.current.textContent || explicit == true
+      localStorage.getItem("last_text") != outputRef.current.textContent ||
+      explicit == true
     ) {
-      if (outputRef.current.textContent == "") {
-        outputTransRef.current.textContent = "_";
+      if (outputRef.current.textContent == "Start signing...") {
+        outputTransRef.current.textContent = "";
       } else {
         fetch("http://127.0.0.1:5000/translate", {
           method: "post",
@@ -273,11 +392,8 @@ function HomePage() {
           }),
         }).then(async (res) => {
           res.json().then((r) => {
-            outputTransRef.current.textContent = r.text + "_";
-            localStorage.setItem(
-              "last_text",
-              outputRef.current.textContent
-            );
+            outputTransRef.current.textContent = r.text;
+            localStorage.setItem("last_text", outputRef.current.textContent);
           });
         });
       }
@@ -302,6 +418,33 @@ function HomePage() {
       .catch((err) => {});
   };
 
+  function getCurrentDateTime() {
+    const now = new Date();
+
+    const options = {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    };
+
+    const formatter = new Intl.DateTimeFormat("en-US", options);
+
+    const parts = formatter.formatToParts(now);
+    const dateParts = {
+      day: parts.find((part) => part.type === "day").value,
+      month: parts.find((part) => part.type === "month").value,
+      year: parts.find((part) => part.type === "year").value,
+      hour: parts.find((part) => part.type === "hour").value,
+      minute: parts.find((part) => part.type === "minute").value,
+      dayPeriod: parts.find((part) => part.type === "dayPeriod").value,
+    };
+
+    return `${dateParts.day} ${dateParts.month} ${dateParts.year} ${dateParts.hour}:${dateParts.minute} ${dateParts.dayPeriod}`;
+  }
+
   return (
     <>
       {error == true ? (
@@ -314,114 +457,35 @@ function HomePage() {
       )}
       {error != true ? (
         <div className="main">
-          <div className="left">
-            <img alt="logo" className="logo" src={logo}></img>
-            <p className="speed-slider-text">Sensing Speed</p>
-            <input
-              className="speed-slider"
-              type="range"
-              step={0.5}
-              value={speed}
-              onInput={(event) => {
-                localStorage.setItem("preferred_speed", event.target.value);
-                setSpeed(event.target.value);
-              }}
-              min={0.5}
-              max={2.5}
-              list="tickmarks"
-            ></input>
-            <datalist className="speed-slider-ticks" id="tickmarks">
-              <option value={0.5} label="0.5s"></option>
-              <option value={1} label="1s"></option>
-              <option value={1.5} label="1.5s"></option>
-              <option value={2} label="2s"></option>
-              <option value={2.5} label="2.5s"></option>
-            </datalist>
-            <div className="autocomplete-checkbox">
-              <input
-                ref={autocomplete}
-                className="checkbox"
-                onInput={(e) => {}}
-                type="checkbox"
-              ></input>
-              Enable Autocomplete
-            </div>
-            <p className="model-selector-text">Select Sign Language</p>
-            <select
-              value={selectedModel}
-              className="model-selector"
-              onChange={(event) => {
-                localStorage.setItem("preferred_model", event.target.value);
-                setSelectedModel(event.target.value);
-              }}
-            >
-              {models.map((i) => (
-                <option value={i}>{i}</option>
-              ))}
-            </select>
-            <p className="language-selector-text">Translate To</p>
-            <select
-              value={selectedLanguage}
-              className="language-selector"
-              onChange={(event) => {
-                localStorage.setItem("preferred_language", event.target.value);
-                setSelectedLanguage(event.target.value);
-                translate(true);
-              }}
-            >
-              {languages.map((i) => (
-                <option value={i}>{i}</option>
-              ))}
-            </select>
-            <p className="language-selector-text">Select Camera</p>
-            <select
-              value={selectedCamera}
-              className="language-selector"
-              onChange={(event) => {
-                setSelectedCamera(event.target.value);
-                getVideo(event.target.value);
-              }}
-            >
-              {cameras.map((i) => {
-                return (
-                  <option value={i}>{cameraNames[cameras.indexOf(i)]}</option>
-                );
-              })}
-            </select>
-          </div>
-          <div className="right">
-            <div className="camera">
-              <div className="buttons">
-                <div
-                  onClick={() => {
-                    if (outputRef.current.textContent != "") {
-                      navigator.share({
-                        text:
-                          outputRef.current.textContent +
-                          " | " +
-                          outputTransRef.current.textContent.replace("_", ""),
-                        title: "Sign Sense",
-                      });
-                    }
+          <div className="top">
+            <div className="logo-container">
+              <img alt="logo" className="logo" src={logo}></img>
+              <div className="speed-slider">
+                <p className="slider-text">Sensing Speed</p>
+                <input
+                  className="slider"
+                  type="range"
+                  step={0.5}
+                  value={speed}
+                  onInput={(event) => {
+                    localStorage.setItem("preferred_speed", event.target.value);
+                    setSpeed(event.target.value);
                   }}
-                  className="share-button"
-                >
-                  Share
-                </div>
-                <div
-                  className="clear-all-button"
-                  onClick={() => {
-                    outputRef.current.textContent = "";
-                    outputTransRef.current.textContent = "_";
-                    suggestion.current.textContent = "";
-                    tooltip.current.style.visibility = "hidden";
-                  }}
-                >
-                  Clear All
-                </div>
+                  min={0.5}
+                  max={2.5}
+                  list="tickmarks"
+                ></input>
+                <datalist className="slider-ticks" id="tickmarks">
+                  <option value={0.5} label="0.5s"></option>
+                  <option value={1} label="1s"></option>
+                  <option value={1.5} label="1.5s"></option>
+                  <option value={2} label="2s"></option>
+                  <option value={2.5} label="2.5s"></option>
+                </datalist>
               </div>
-
-              <div className="frame">
+            </div>
+            <div className="camera-container">
+              <div className="camera">
                 <div
                   style={{ visibility: "hidden" }}
                   ref={bbRef}
@@ -432,27 +496,315 @@ function HomePage() {
                 <video className="camera-ref" ref={videoRef}></video>
               </div>
             </div>
-            <div className="text-output-section">
-              <div className="text">
-                <span ref={outputRef} className="text-output"></span>
-                <span>
-                  <p ref={suggestion} className="text-suggestions"></p>
-                </span>
-                <span className="text-output">_</span>
+            <div className="dropdown-container">
+              <div className="model-dropdown">
+                <p className="dropdown-text">Select Sign Language</p>
+                <select
+                  value={selectedModel}
+                  className="dropdown"
+                  onChange={(event) => {
+                    localStorage.setItem("preferred_model", event.target.value);
+                    setSelectedModel(event.target.value);
+                  }}
+                >
+                  {models.map((i) => (
+                    <option value={i}>{i}</option>
+                  ))}
+                </select>
               </div>
-              <div ref={tooltip} className="tooltip">
-                <p className="tooltip-title">Autocomplete</p>
-                <p className="tooltip-text">
-                  <i>SPACE</i> to accept
-                </p>
-                <p className="tooltip-text">
-                  <i>BACKSPACE</i> to reject
-                </p>
+              <div className="translate-dropdown">
+                <p className="dropdown-text">Translate To</p>
+                <select
+                  value={selectedLanguage}
+                  className="dropdown"
+                  onChange={(event) => {
+                    localStorage.setItem(
+                      "preferred_language",
+                      event.target.value
+                    );
+                    setSelectedLanguage(event.target.value);
+                    translate(true);
+                  }}
+                >
+                  {languages.map((i) => (
+                    <option value={i}>{i}</option>
+                  ))}
+                </select>
               </div>
-              <div className="text-output-divider"></div>
-              <p ref={outputTransRef} className="text-translation">
-                _
-              </p>
+              <div className="camera-dropdown">
+                <p className="dropdown-text">Select Camera</p>
+                <select
+                  value={selectedCamera}
+                  className="dropdown"
+                  onChange={(event) => {
+                    setSelectedCamera(event.target.value);
+                    getVideo(event.target.value);
+                  }}
+                >
+                  {cameras.map((i) => {
+                    return (
+                      <option value={i}>
+                        {cameraNames[cameras.indexOf(i)]}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+            <div className="switch-container">
+              <div className="switches">
+                <div className="switch">
+                  <ReactSwitch
+                    activeBoxShadow=""
+                    onColor="#005CC8"
+                    checkedIcon={false}
+                    uncheckedIcon={false}
+                    onChange={(x) => {
+                      setAlphabetSymbols(x);
+                    }}
+                    checked={alphabetSymbols}
+                  ></ReactSwitch>
+                  <p className="switch-text">Show Sign Alphabets</p>
+                </div>
+                <div className="switch">
+                  <ReactSwitch
+                    activeBoxShadow=""
+                    onColor="#005CC8"
+                    checkedIcon={false}
+                    uncheckedIcon={false}
+                    onChange={(x) => {
+                      setFontSize(x);
+                    }}
+                    checked={fontSize}
+                  ></ReactSwitch>
+                  <p className="switch-text">Increase Font Size</p>
+                </div>
+                <div className="switch">
+                  <ReactSwitch
+                    ref={autocompleteSwitch}
+                    activeBoxShadow=""
+                    onColor="#005CC8"
+                    checkedIcon={false}
+                    uncheckedIcon={false}
+                    onChange={(x) => {
+                      setAutocomplete(x);
+                    }}
+                    checked={autocomplete}
+                  ></ReactSwitch>
+                  <p className="switch-text">Autocomplete (Beta)</p>
+                </div>
+              </div>
+              <div className="share-clear">
+                <div
+                  onClick={() => {
+                    if (
+                      JSON.parse(localStorage.getItem("chat_history")).length !=
+                      0
+                    ) {
+                      
+                      let content = JSON.parse(
+                        localStorage.getItem("chat_history")
+                      )
+                        .map((x) => {
+                          return (
+                            x.type + " - " + x.text + " | " + x.translation
+                          );
+                        })
+                        .join("\n");
+                      content = content + "\n\nCreated on: " + getCurrentDateTime();
+                      navigator.share({
+                        title: "Sign Sense Chat",
+                        text: content,
+                      });
+                    } else {
+                      alert("No conversation to share");
+                    }
+                  }}
+                  className="button"
+                >
+                  Share
+                </div>
+                <div
+                  onClick={() => {
+                    outputRef.current.textContent = "Start signing...";
+                    outputTransRef.current.textContent = "";
+                    suggestion.current.textContent = "";
+                    setTranscription("");
+                    setTranscriptionTrans("");
+                    localStorage.setItem("chat_history", JSON.stringify([]));
+                  }}
+                  className="button"
+                >
+                  Clear All
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bottom">
+            {alphabetSymbols ? (
+              <div className="alphabets">
+                <img src={alphabets} className="alphabets-image"></img>
+              </div>
+            ) : (
+              ""
+            )}
+            <div
+              className="text-container"
+              style={{ height: alphabetSymbols ? "77%" : "100%" }}
+            >
+              <div className="sign-container">
+                <div className="sign-text">
+                  <img
+                    onClick={() => {
+                      if (isScanning == true) {
+                        setIsScanning(false);
+                        if (
+                          outputRef.current.textContent != "Start signing..."
+                        ) {
+                          var new_list = JSON.parse(
+                            localStorage.getItem("chat_history")
+                          );
+                          new_list.push({
+                            type: "Sign",
+                            text: outputRef.current.textContent,
+                            translation: outputTransRef.current.textContent,
+                          });
+                          localStorage.setItem(
+                            "chat_history",
+                            JSON.stringify(new_list)
+                          );
+                        }
+                      } else {
+                        setIsScanning(true);
+                        setIsRecording(false);
+                        if (
+                          speechRef.current.textContent != "Start speaking..."
+                        ) {
+                          var new_list = JSON.parse(
+                            localStorage.getItem("chat_history")
+                          );
+                          if (
+                            new_list[new_list.length - 1] ==
+                            {
+                              type: "Speech",
+                              text: speechRef.current.textContent,
+                              translation: speechTransRef.current.textContent,
+                            }
+                          ) {
+                            new_list.push({
+                              type: "Speech",
+                              text: speechRef.current.textContent,
+                              translation: speechTransRef.current.textContent,
+                            });
+                            localStorage.setItem(
+                              "chat_history",
+                              JSON.stringify(new_list)
+                            );
+                          }
+                        }
+                      }
+                    }}
+                    ref={scanButton}
+                    alt={isScanning ? "true" : "false"}
+                    className="text-icon"
+                    src={isScanning ? stop_signing : start_signing}
+                  ></img>
+                  <div className="sign-text-values">
+                    <div className="sign-text-row">
+                      <p
+                        className="sign-text-original"
+                        style={{ fontSize: fontSize ? "1.7em" : "1.3em" }}
+                        ref={outputRef}
+                      >
+                        Start signing...
+                      </p>
+                      <i className="sign-text-suggestion" ref={suggestion}></i>
+                    </div>
+                    <p
+                      style={{ fontSize: fontSize ? "1.7em" : "1.3em" }}
+                      className="sign-text-translated"
+                      ref={outputTransRef}
+                    ></p>
+                  </div>
+                </div>
+                <div className="sign-controls"></div>
+              </div>
+              <div className="talk-container">
+                <div className="talk-text">
+                  <img
+                    onClick={() => {
+                      if (isRecording == false) {
+                        startRecognition();
+                        setIsRecording(true);
+                        setIsScanning(false);
+                        if (
+                          outputRef.current.textContent != "Start signing..."
+                        ) {
+                          var new_list = JSON.parse(
+                            localStorage.getItem("chat_history")
+                          );
+                          if (
+                            new_list[new_list.length - 1] !=
+                            {
+                              type: "Sign",
+                              text: outputRef.current.textContent,
+                              translation: outputTransRef.current.textContent,
+                            }
+                          ) {
+                            new_list.push({
+                              type: "Sign",
+                              text: outputRef.current.textContent,
+                              translation: outputTransRef.current.textContent,
+                            });
+                            localStorage.setItem(
+                              "chat_history",
+                              JSON.stringify(new_list)
+                            );
+                          }
+                        }
+                      } else {
+                        stopRecognition();
+                        setIsRecording(false);
+                        if (
+                          speechRef.current.textContent != "Start speaking..."
+                        ) {
+                          var new_list = JSON.parse(
+                            localStorage.getItem("chat_history")
+                          );
+                          new_list.push({
+                            type: "Speech",
+                            text: speechRef.current.textContent,
+                            translation: speechTransRef.current.textContent,
+                          });
+                          localStorage.setItem(
+                            "chat_history",
+                            JSON.stringify(new_list)
+                          );
+                        }
+                      }
+                    }}
+                    className="text-icon"
+                    src={isRecording ? stop_speaking : start_speaking}
+                  ></img>
+                  <div>
+                    <p
+                      ref={speechRef}
+                      className="talk-text-original"
+                      style={{ fontSize: fontSize ? "1.7em" : "1.3em" }}
+                    >
+                      {transcription || "Start speaking..."}
+                    </p>
+                    <p
+                      ref={speechTransRef}
+                      className="talk-text-translated"
+                      style={{ fontSize: fontSize ? "1.7em" : "1.3em" }}
+                    >
+                      {transcriptionTrans}
+                    </p>
+                  </div>
+                </div>
+                <div className="talk-controls"></div>
+              </div>
             </div>
           </div>
         </div>
