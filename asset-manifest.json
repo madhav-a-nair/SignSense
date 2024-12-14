@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/SignSense/static/css/main.457912d2.css",
+    "main.css": "/SignSense/static/css/main.fcdda63b.css",
     "main.js": "/SignSense/static/js/main.db1855b8.js",
     "static/media/SignSenseLogo.png": "/SignSense/static/media/SignSenseLogo.e4669b0a28281b751065.png",
     "static/media/WorkSans.ttf": "/SignSense/static/media/WorkSans.905f58df4c3ad21ca78d.ttf",
@@ -11,11 +11,11 @@
     "static/media/stop_signing.png": "/SignSense/static/media/stop_signing.c593a6204d5e84a583ba.png",
     "static/media/start_signing.png": "/SignSense/static/media/start_signing.b5168785fd39cbc8a0a1.png",
     "index.html": "/SignSense/index.html",
-    "main.457912d2.css.map": "/SignSense/static/css/main.457912d2.css.map",
+    "main.fcdda63b.css.map": "/SignSense/static/css/main.fcdda63b.css.map",
     "main.db1855b8.js.map": "/SignSense/static/js/main.db1855b8.js.map"
   },
   "entrypoints": [
-    "static/css/main.457912d2.css",
+    "static/css/main.fcdda63b.css",
     "static/js/main.db1855b8.js"
   ]
 }
