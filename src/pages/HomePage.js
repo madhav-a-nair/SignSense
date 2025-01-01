@@ -28,6 +28,7 @@ function HomePage() {
   const [autocomplete, setAutocomplete] = useState(false)
   const [alphabetSymbols, setAlphabetSymbols] = useState(true);
   const [fontSize, setFontSize] = useState(true);
+  const [context, setContext] = useState('general conversation')
 
   const videoRef = useRef(null);
   const outputRef = useRef(null);
@@ -59,9 +60,13 @@ function HomePage() {
   var prevScanBtnStatus = "false";
   var scanFailedCount = 0;
 
-  useEffect(() => { 
+  useEffect(() => {
     localStorage.setItem("chat_history", JSON.stringify([]));
-    navigator.permissions.query({ name: "camera", userVisibleOnly: true });
+    navigator.permissions.query({ name: "camera" }).then(function(result) {
+      if (result.state !== 'granted') {
+        alert('Camera access denied')
+      }
+    });
     navigator.mediaDevices.enumerateDevices().then((res) => {
       let camerasList = [];
       let cameraNamesList = [];
@@ -69,7 +74,7 @@ function HomePage() {
         if (cam.kind == "videoinput") {
           cameraNamesList.push(cam.label);
           camerasList.push(cam.deviceId);
-        }
+        } 
       });
       setCameraNames(cameraNamesList);
       setCameras(camerasList);
@@ -82,11 +87,12 @@ function HomePage() {
     } else {
       setSpeed(2);
     }
-    setError(false);
+    setError(true);
 
-    fetch("http://127.0.0.1:5000")
+    fetch("https://engaged-aviary-441913-v1.el.r.appspot.com")
       .then((r) => {
-        fetch("http://127.0.0.1:5000/models").then((res) => {
+        setError(false);
+        fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/models").then((res) => {
           res.json().then((r) => {
             setModels(r);
             if (localStorage.getItem("preferred_model") != null) {
@@ -97,7 +103,7 @@ function HomePage() {
             }
           });
         });
-        fetch("http://127.0.0.1:5000/languages").then((res) => {
+        fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/languages").then((res) => {
           res.json().then((r) => {
             setLanguages(r.sort());
             if (localStorage.getItem("preferred_language") != null) {
@@ -134,7 +140,7 @@ function HomePage() {
         .map((result) => result[0].transcript)
         .join("");
       setTranscription(transcript);
-      fetch("http://127.0.0.1:5000/translate", {
+      fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/translate", {
         method: "post",
         headers: {
           "Content-Type": "application/json",
@@ -189,6 +195,7 @@ function HomePage() {
         text: outputRef.current.textContent,
         translation: outputTransRef.current.textContent,
       });
+      suggestion.current.textContent = '';
       localStorage.setItem("chat_history", JSON.stringify(new_list));
     }
     if (
@@ -209,7 +216,7 @@ function HomePage() {
         image: imageData,
         model: localStorage.getItem("preferred_model"),
       });
-      fetch("http://127.0.0.1:5000/predict", {
+      fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/predict", {
         method: "post",
         headers: {
           "Content-Type": "application/json",
@@ -324,28 +331,30 @@ function HomePage() {
                   return x != "";
                 }).length >= 2
               ) {
-                fetch("http://127.0.0.1:5000/suggest", {
+                fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/suggest", {
                   method: "post",
                   headers: {
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
+                    context: context,
                     text: outputRef.current.textContent,
                   }),
                 }).then(async (res) => {
-                  
-                  res.json().then((r) => {
-                    
-                    let suggestions = r.suggestions.filter((x)=>{
-                      if (x != '') {
-                        return x;
+
+                  if (outputRef.current.textContent.at(-1) == " ") {
+                    res.json().then((r) => {
+                      let suggestions = r.suggestions.filter((x) => {
+                        if (x != "") {
+                          return x;
+                        }
+                      });
+                      suggestion.current.textContent = suggestions[1];
+                      if (localStorage.getItem("suggestion_done") != "done") {
+                        localStorage.setItem("suggestion_done", "done");
                       }
                     });
-                    suggestion.current.textContent = suggestions[0];
-                    if (localStorage.getItem("suggestion_done") != "done") {
-                      localStorage.setItem("suggestion_done", "done");
-                    }
-                  });
+                  }
                 });
               }
             }
@@ -381,7 +390,7 @@ function HomePage() {
       if (outputRef.current.textContent == "Start signing...") {
         outputTransRef.current.textContent = "";
       } else {
-        fetch("http://127.0.0.1:5000/translate", {
+        fetch("https://engaged-aviary-441913-v1.el.r.appspot.com/translate", {
           method: "post",
           headers: {
             "Content-Type": "application/json",
@@ -471,12 +480,11 @@ function HomePage() {
                     localStorage.setItem("preferred_speed", event.target.value);
                     setSpeed(event.target.value);
                   }}
-                  min={0.5}
+                  min={1}
                   max={2.5}
                   list="tickmarks"
                 ></input>
                 <datalist className="slider-ticks" id="tickmarks">
-                  <option value={0.5} label="0.5s"></option>
                   <option value={1} label="1s"></option>
                   <option value={1.5} label="1.5s"></option>
                   <option value={2} label="2s"></option>
@@ -588,10 +596,18 @@ function HomePage() {
                     uncheckedIcon={false}
                     onChange={(x) => {
                       setAutocomplete(x);
+                      if (x === true) {
+                        var prompt_ans = prompt("Please provide a clear and specific context, such as 'doctor consultation' or 'general conversation,' to ensure more accurate and relevant AI suggestions.", context)
+                        if (prompt_ans !== null) {
+                          setContext(prompt_ans)
+                        } else {
+                          setAutocomplete(false)
+                        }
+                      }
                     }}
                     checked={autocomplete}
                   ></ReactSwitch>
-                  <p className="switch-text">Autocomplete (Beta)</p>
+                  <p className="switch-text">Autocomplete</p>
                 </div>
               </div>
               <div className="share-clear">

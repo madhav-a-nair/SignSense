@@ -138,16 +138,19 @@ html {
 /** Main Styling **/
 
 .main {
+    display: flex;
+    flex-direction: column;
     height: 100vh;
     width: 100vw;
 }
 
 .top {
+    flex-grow: 1;
     justify-content: space-between;
     display: flex;
     flex-direction: row;
     width: calc(100% - 6em);
-    height: calc(50% - 4em);
+    max-height: calc(50% - 4em);
     padding: 2em 3em;
 }
 
@@ -200,6 +203,7 @@ html {
 }
 
 .bottom {
+    flex-grow: 1;
     width: calc(100% - 6em);
     height: calc(50% - 3em);
     padding: 1em 3em 2em 3em;
@@ -240,6 +244,7 @@ html {
 }
 
 .sign-text, .talk-text {
+    white-space: pre;
     padding: 20px;
     background-color: rgb(233, 233, 233);
     width: calc(100% - 40px);
@@ -312,4 +317,18 @@ html {
     width: 100%;
     display: flex;
     flex-direction: row;
+}
+
+
+@media screen and (max-height: 790px) {
+  .bottom {
+    height: 20vh;
+  }
+
+}
+@media screen and (max-height: 630px) {
+  .bottom {
+    height: 15vh;
+  }
+
 }
